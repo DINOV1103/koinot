@@ -73,6 +73,7 @@ h1{font-family:var(--display);font-weight:300;font-size:clamp(66px,20vw,116px);l
 .sec{font-size:10.5px;font-weight:600;letter-spacing:.2em;text-transform:uppercase;color:var(--muted)}
 .seg,.chips{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;padding:4px;border-radius:14px;background:rgba(255,255,255,.05);border:1px solid var(--line)}
 .chips{grid-template-columns:repeat(4,1fr)}
+.chips.c3{grid-template-columns:repeat(3,1fr)}
 .seg button,.chips button{appearance:none;border:0;background:transparent;color:var(--muted);font:600 12px/1.2 var(--body);padding:10px 4px;border-radius:10px;cursor:pointer;transition:background .25s,color .25s}
 .seg button[aria-checked="true"],.chips button[aria-checked="true"]{background:rgba(var(--acc-rgb),.22);color:#fff;box-shadow:inset 0 0 0 1px rgba(var(--acc-rgb),.45)}
 .np{display:grid;gap:10px;padding:14px;border-radius:16px;background:linear-gradient(135deg,rgba(var(--acc-rgb),.16),rgba(255,255,255,.03));border:1px solid var(--line)}
@@ -236,6 +237,14 @@ body.ss #c{cursor:none}
       <button type="button" role="radio" data-min="60">60 daq</button>
     </div>
     <p class="hintline">Oxirgi daqiqalarda musiqa sekin pasayadi, ekran xiralashadi, samolyotcha sekinlashadi.</p>
+  </div>
+  <div class="blk">
+    <p class="sec">Ranglar avtomatik almashsin</p>
+    <div class="chips c3" id="autoChips" role="radiogroup" aria-label="Ranglar avtomatik almashishi">
+      <button type="button" role="radio" data-sec="0">O‘chiq</button>
+      <button type="button" role="radio" data-sec="30">30 soniya</button>
+      <button type="button" role="radio" data-sec="60">1 daqiqa</button>
+    </div>
   </div>
   <div class="tiles">
     <button class="tile" id="tVideo" type="button"><svg viewBox="0 0 24 24"><rect x="2" y="6" width="14" height="12" rx="2"/><path d="m22 8-6 4 6 4V8z"/></svg><span id="tVideoL">Video yozish</span><small>Reels uchun, 9:16</small></button>
@@ -401,7 +410,7 @@ const RELEASE_MSGS=['Qo‘yib yubording. Endi u koinotniki.','U endi uzoqda. Sen
 const S={t:0,started:false,
   pl:{x:0,y:0,a:-.55,v:160,turn:0},rho:0,cam:{x:0,y:0},off:{x:0,y:0},cvx:0,cvy:0,zoom:1,zoomT:1,
   touching:false,px:0,py:0,lastInput:-99,touchA:0,
-  warpT:-1,warpI:0,flash:0,reseeded:false,warpTheme:false,mix:1,
+  warpT:-1,warpI:0,flash:0,reseeded:false,warpTheme:false,mix:1,mixDur:2.6,pendingTh:null,nextAuto:0,
   breathOn:false,breathA:0,breathStart:0,msgOn:store.get('msg',true),msgA:0,
   lvl:0,bAvg:0,pulse:0,lastBeat:0,depth:1,wasManual:false,
   orbit:null,visit:null,visitT:0,nextVisit:20,
@@ -565,18 +574,24 @@ function makeDisk(th){
   }
   return c;
 }
-function newLook(ti){
-  const th=THEMES[ti],spr=[0,1,2].map(()=>makeNeb(th)),M=Math.max(W,H),nebs=[];
+const LOOKCACHE={};
+function themeSprites(ti){if(!LOOKCACHE[ti]){const th=THEMES[ti];LOOKCACHE[ti]={neb:[0,1,2].map(()=>makeNeb(th)),gal:makeGal(th.gal),bg:makeBg(th)};}return LOOKCACHE[ti];}
+function newLook(ti,keep){
+  const th=THEMES[ti],C=themeSprites(ti),M=Math.max(W,H),nebs=[];
+  if(keep){
+    keep.nebs.forEach((n,i)=>nebs.push(Object.assign({},n,{img:C.neb[i%3]})));
+    return {ti,th,bg:C.bg,nebs,gal:Object.assign({},keep.gal,{img:C.gal})};
+  }
   for(let i=0;i<6;i++){
     const d=rand(.03,.085),size=M*rand(.85,1.55);let sx,sy;
     if(i===0){sx=W*rand(.25,.75);sy=H*rand(.25,.6);}
     else if(i===1){sx=W*rand(-.1,1.1);sy=H*rand(-.1,1.1);}
     else{sx=rand(0,F);sy=rand(0,F);}
-    nebs.push({img:spr[i%3],d,size,rot:rand(0,TAU),spin:rand(-.006,.006),a:rand(.7,1),x:sx+S.cam.x*d,y:sy+S.cam.y*d});
+    nebs.push({img:C.neb[i%3],d,size,rot:rand(0,TAU),spin:rand(-.006,.006),a:rand(.7,1),x:sx+S.cam.x*d,y:sy+S.cam.y*d});
   }
   const gd=.006;
-  const gal={img:makeGal(th.gal),d:gd,size:Math.min(W,H)*rand(.5,.75),rot:rand(-.6,.6),x:W*rand(.15,.85)+S.cam.x*gd,y:H*rand(.1,.32)+S.cam.y*gd};
-  return {ti,th,bg:makeBg(th),nebs,gal};
+  const gal={img:C.gal,d:gd,size:Math.min(W,H)*rand(.5,.75),rot:rand(-.6,.6),x:W*rand(.15,.85)+S.cam.x*gd,y:H*rand(.1,.32)+S.cam.y*gd};
+  return {ti,th,bg:C.bg,nebs,gal};
 }
 function drawLook(L,alpha,t){
   if(alpha<=.003)return;
@@ -602,7 +617,7 @@ function applyTheme(th){
   diskSpr=makeDisk(th);
   document.documentElement.style.setProperty('--acc-rgb',th.acc);
 }
-function switchLook(ti){prevLook=look;look=newLook(ti);S.mix=0;applyTheme(look.th);renderMore();}
+function switchLook(ti,keep,dur){prevLook=look;look=newLook(ti,keep?prevLook:null);S.mix=0;S.mixDur=dur||2.6;S.pendingTh=look.th;renderMore();}
 
 /* ---------- Sayyoralar ---------- */
 const PAL={
@@ -1131,7 +1146,7 @@ function updateWarp(dt){
   if(t<.7)w=ease(t/.7);else if(t<2.3)w=1;else if(t<3.6)w=1-ease((t-2.3)/1.3);
   else{w=0;S.warpT=-1;nextPlanet=Math.min(nextPlanet,S.t+1.2);}
   S.warpI=w;
-  if(!S.reseeded&&t>1.3){S.reseeded=true;const ti=S.warpTheme?(look.ti+1)%THEMES.length:look.ti;S.warpTheme=false;switchLook(ti);}
+  if(!S.reseeded&&t>1.3){S.reseeded=true;const ti=S.warpTheme?(look.ti+1)%THEMES.length:look.ti;S.warpTheme=false;delete LOOKCACHE[ti];switchLook(ti,false,2.6);S.nextAuto=S.t+autoSec;}
 }
 
 /* ---------- Ovoz ---------- */
@@ -1452,14 +1467,20 @@ function renderMore(){
   if(!tTilt)return;
   setAct(tTilt,TL.on);$('#tTiltS').textContent=TL.on?'Yoqiq':'O‘chiq';
   setAct(tMsg,S.msgOn);$('#tMsgS').textContent=S.msgOn?'Yoqiq':'O‘chiq';
-  if(look)$('#tThemeS').textContent=look.th.name;
+  if(look)$('#tThemeS').textContent=look.th.name+(autoSec?' · avto':'');
+  document.querySelectorAll('#autoChips button').forEach(b=>b.setAttribute('aria-checked',String(+b.dataset.sec===autoSec)));
   tFull.hidden=!fsOK;setAct(tFull,isFs());$('#tFullS').textContent=isFs()?'Yoqiq':'O‘chiq';
   tInstall.hidden=standalone();
   setAct(tVideo,!!REC.mr);$('#tVideoL').textContent=REC.mr?'Yozishni to‘xtatish':'Video yozish';
   document.querySelectorAll('#sleepChips button').forEach(b=>b.setAttribute('aria-checked',String(+b.dataset.min===(SL.on?SL.min:0))));
 }
 tMsg.addEventListener('click',()=>{S.msgOn=!S.msgOn;store.set('msg',S.msgOn);if(!S.msgOn)msgEl.classList.remove('show');else scheduleMsg(2500);renderMore();});
-tTheme.addEventListener('click',()=>{const ti=(look.ti+1)%THEMES.length;switchLook(ti);store.set('theme',ti);toast('Rang: '+THEMES[ti].name,1800);});
+tTheme.addEventListener('click',()=>{const ti=(look.ti+1)%THEMES.length;switchLook(ti,true,2.6);store.set('theme',ti);S.nextAuto=S.t+autoSec;toast('Rang: '+THEMES[ti].name,1800);});
+let autoSec=(()=>{const v=+store.get('autoColor',30);return [0,30,60].includes(v)?v:30;})();
+document.querySelectorAll('#autoChips button').forEach(b=>b.addEventListener('click',()=>{
+  autoSec=+b.dataset.sec;store.set('autoColor',autoSec);S.nextAuto=S.t+autoSec;renderMore();
+  toast(autoSec?'Ranglar har '+(autoSec===60?'1 daqiqada':autoSec+' soniyada')+' almashadi':'Avto rang o‘chirildi',2000);
+}));
 tFull.addEventListener('click',()=>{isFs()?exitFs():enterFs();});
 document.addEventListener('fullscreenchange',renderMore);document.addEventListener('webkitfullscreenchange',renderMore);
 
@@ -1670,6 +1691,7 @@ $('#go').addEventListener('click',()=>{
   S.started=true;$('#intro').classList.add('hide');
   setMode('mine');
   if(layersActive()&&audioInit())resumeCtx();
+  S.nextAuto=S.t+autoSec;
   wake();
   if(fsOK&&window.matchMedia&&matchMedia('(pointer:coarse)').matches)enterFs();
   setTimeout(()=>{bar.classList.add('on');barWake();},900);
@@ -1682,7 +1704,8 @@ loadSite().catch(()=>{}).then(()=>{M.loaded=true;renderList();renderNP();if(S.st
 
 /* ---------- Asosiy sikl ---------- */
 function update(dt){
-  if(S.mix<1){S.mix=Math.min(1,S.mix+dt/2.6);if(S.mix>=1)prevLook=null;}
+  if(S.mix<1){S.mix=Math.min(1,S.mix+dt/S.mixDur);if(S.pendingTh&&S.mix>=.5){applyTheme(S.pendingTh);S.pendingTh=null;}if(S.mix>=1)prevLook=null;}
+  if(S.started&&autoSec&&S.t>S.nextAuto&&!S.ritual&&S.warpT<0){S.nextAuto=S.t+autoSec;switchLook((look.ti+1)%THEMES.length,true,6);}
   updateWarp(dt);updatePlane(dt);updateCam(dt);updateTrail(dt);updateParts(dt);updatePlanets();updateHoles();updateShoots(dt);updateRings(dt);updateRitual(dt);
   S.flash=Math.max(0,S.flash-dt*2.4);
   S.touchA+=((S.touching?1:0)-S.touchA)*(1-Math.exp(-dt*8));
