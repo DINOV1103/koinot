@@ -1270,7 +1270,7 @@ async function loadSite(){
     if(ck&&ck.repo===repo&&Date.now()-ck.t<15*60*1000)files=ck.files;
     else{
       try{
-        const r=await fetch('https://api.github.com/repos/'+repo+'/contents/',{headers:{Accept:'application/vnd.github+json'}});
+        const r=await fetch('https://api.github.com/repos/'+repo+'/contents',{headers:{Accept:'application/vnd.github+json'}});
         if(r.ok){const j=await r.json();if(Array.isArray(j)){files=j.filter(f=>f&&f.type==='file'&&AUD.test(f.name)).map(f=>f.name);store.set('ghcache',{repo,t:Date.now(),files});}}
       }catch(e){}
       if(!files&&ck&&ck.repo===repo)files=ck.files;
