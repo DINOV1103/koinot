@@ -299,7 +299,7 @@ body.ss #c{cursor:none}
    2) O'z domening bo'lsa (masalan dnv.uz): GITHUB_REPO ga repo nomini yoz.
    3) Yoki fayl nomlarini SITE_MUSIC ro'yxatiga qo'lda yoz.
    ===================================================================== */
-const SITE_MUSIC=[];   // masalan: ['01 Tun.mp3','02 Yulduzlar.mp3']
+const SITE_MUSIC=['01_tun.mp3','02 Purrple Cat - Missing You.mp3','03 ChopLife SoundSystem, Mr Eazi - Never Walk Alone.m4a','04 Jah Khalib - Доча.mp3'];   // GitHub javob bermasa ham shular chalinadi
 const GITHUB_REPO='DINOV1103/koinot';  // musiqa shu repo'dan olinadi (Vercel, o'z domen, github.io — hammasida ishlaydi)
 
 const $=s=>document.querySelector(s);
@@ -1272,31 +1272,45 @@ const plist=$('#plist'),plEmpty=$('#plEmpty'),volIn=$('#vol');
 const setP=(el,v)=>el.style.setProperty('--p',v+'%');
 const AUD=/\.(mp3|m4a|aac|wav|ogg|oga|opus|flac|webm)$/i;
 const niceName=n=>{let s=String(n).split('/').pop();try{s=decodeURIComponent(s);}catch(e){}s=s.replace(/\.[^.]+$/,'').replace(/_+/g,' ').replace(/^\d+[\s._-]+/,'').trim();return s?s.charAt(0).toLocaleUpperCase('uz')+s.slice(1):'Qo‘shiq';};
-async function loadSite(){
-  const names=SITE_MUSIC.filter(Boolean).map(String);
+function siteRepo(){
   let repo=String(GITHUB_REPO||'').trim().replace(/^https?:\/\/github\.com\//i,'').replace(/\/+$/,'');
   const h=location.hostname;
   if(!repo&&/\.github\.io$/i.test(h)){
     const owner=h.split('.')[0],seg=location.pathname.split('/').filter(Boolean)[0];
     repo=seg&&!/\.[a-z0-9]+$/i.test(seg)?owner+'/'+seg:owner+'/'+h;
   }
-  if(repo&&/^https?:$/.test(location.protocol)){
-    let files=null;const ck=store.get('ghcache',null);
-    if(ck&&ck.repo===repo&&Date.now()-ck.t<15*60*1000)files=ck.files;
-    else{
-      try{
-        const r=await fetch('https://api.github.com/repos/'+repo+'/contents',{headers:{Accept:'application/vnd.github+json'}});
-        if(r.ok){const j=await r.json();if(Array.isArray(j)){files=j.filter(f=>f&&f.type==='file'&&AUD.test(f.name)).map(f=>f.name);store.set('ghcache',{repo,t:Date.now(),files});}}
-      }catch(e){}
-      if(!files&&ck&&ck.repo===repo)files=ck.files;
+  return repo;
+}
+function setSite(names){
+  const uniq=[...new Set(names.filter(Boolean).map(String))].sort((a,b)=>a.localeCompare(b,undefined,{numeric:true}));
+  const old=new Map(M.site.map(t=>[t.src,t]));
+  M.site=uniq.map(n=>{const src=/^https?:\/\//i.test(n)?n:n.split('/').map(encodeURIComponent).join('/');return old.get(src)||{name:niceName(n),src};});
+  if(M.cur){const same=M.site.find(t=>t.src===M.cur.src);if(same)M.cur=same;}
+  renderList();renderNP();
+  if(S.started&&M.mode==='mine'&&M.site.length&&!M.el.getAttribute('src'))playTrack(0);
+}
+async function loadSite(){
+  const repo=siteRepo(),ck=store.get('ghcache',null);
+  const cached=ck&&ck.repo===repo&&Array.isArray(ck.files)?ck.files:[];
+  setSite(SITE_MUSIC.concat(cached));
+  if(!repo||!/^https?:$/.test(location.protocol))return;
+  try{
+    const r=await fetch('https://api.github.com/repos/'+repo+'/contents?t='+Date.now(),{headers:{Accept:'application/vnd.github+json'},cache:'no-store'});
+    if(r.ok){
+      const j=await r.json();
+      if(Array.isArray(j)){
+        const files=j.filter(f=>f&&f.type==='file'&&AUD.test(f.name)).map(f=>f.name);
+        store.set('ghcache',{repo,t:Date.now(),files});
+        setSite(SITE_MUSIC.filter(n=>/^https?:/i.test(n)||files.includes(n)).concat(files));
+      }
     }
-    if(files)files.slice().sort((a,b)=>a.localeCompare(b,undefined,{numeric:true})).forEach(f=>{if(!names.includes(f))names.push(f);});
-  }
-  M.site=names.map(n=>({name:niceName(n),src:/^https?:\/\//i.test(n)?n:n.split('/').map(encodeURIComponent).join('/')}));
+  }catch(e){}
 }
 function playTrack(i){
   const list=allTracks();if(!list.length)return;
-  const tr=list[mod(i,list.length)];M.cur=tr;
+  let k=mod(i,list.length),n=0;while(list[k].bad&&n<list.length){k=mod(k+1,list.length);n++;}
+  if(list[k].bad)return;
+  const tr=list[k];M.cur=tr;
   if(/^https?:\/\//i.test(tr.src)&&!tr.src.startsWith(location.origin))M.el.crossOrigin='anonymous';else M.el.removeAttribute('crossorigin');
   M.el.src=tr.src;
   resumeCtx();
@@ -1314,9 +1328,10 @@ M.el.addEventListener('timeupdate',()=>{
   npCur.textContent=fmt(c);npSeek.value=Math.round(p*10);setP(npSeek,p);
 });
 M.el.addEventListener('error',()=>{
-  if(!M.el.getAttribute('src'))return;
-  toast('Bu faylni ochib bo‘lmadi: '+(M.cur?M.cur.name:''),2400);
-  if(allTracks().length>1&&M.mode==='mine')setTimeout(()=>playTrack(curIdx()+1),900);
+  if(!M.el.getAttribute('src')||!M.cur)return;
+  M.cur.bad=true;
+  if(!allTracks().some(t=>!t.bad)){M.el.removeAttribute('src');M.cur=null;renderList();renderNP();return;}
+  if(M.mode==='mine')setTimeout(()=>playTrack(curIdx()+1),400);
 });
 function setMode(m){
   M.mode=m;renderSeg();setAct(bMusic,m!=='off');
@@ -1355,6 +1370,7 @@ function renderNP(){
   npRow.hidden=npCtl.hidden=!on;
   if(M.mode==='off'){npTitle.textContent='Jimlik';npSub.textContent=layersActive()?'Faqat fon ovozlari':'Faqat sen va sukunat';}
   else if(!list.length){npTitle.textContent='Pleylist';npSub.textContent=M.loaded?'Hozircha pleylist bo‘sh':'Musiqa yuklanmoqda…';}
+  else if(!list.some(t=>!t.bad)){npTitle.textContent='Pleylist';npSub.textContent='Musiqa fayllari bu yerda ochilmadi';npRow.hidden=npCtl.hidden=true;}
   else{const i=Math.max(0,curIdx());npTitle.textContent=list[i].name;npSub.textContent=(i+1)+' / '+list.length+' · Koinot pleylisti';}
   updPlayBtn();
 }
