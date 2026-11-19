@@ -527,7 +527,7 @@ const MOODS={
   greet:'Xavotir o‘tkinchi. Kel, avval birga nafas olamiz.',
   msgs:['Xavotir tanangning seni himoya qilishga urinishi. Hozir xavf yo‘q.','Oyoqlaring yerda. Sen mustahkam turibsan.','Fikr bu fakt emas. Shunchaki fikr.','O‘ylagan eng yomon holat kamdan-kam sodir bo‘ladi.','Chiqargan nafasing olganingdan uzunroq bo‘lsin.','Hozir, shu daqiqada, sen xavfsizsan.','Hammasini nazorat qilish shart emas.','Yuragingning tez urishi ham asta sekinlashadi.','Bir vaqtda faqat bitta narsa haqida o‘yla.']},
  bored:{name:'Zerikdim',theme:3,speed:1,
-  hint:'Ko‘proq sayyora, kometa, yulduz yomg‘iri va koinot haqida qiziq faktlar.',
+  hint:'Ko‘proq sayyora, kometa, kosmik meduzalar va koinot haqida qiziq faktlar.',
   greet:'Zerikdingmi? Koinotda doim yangi narsa bor. Kuzatib bor.',
   msgs:['Quyosh nuri Yerga taxminan 8 daqiqa 20 soniyada yetib keladi.','Saturn shunchalik yengilki, ulkan okeanda suzib yurgan bo‘lardi.','Venerada bir kun bir yildan uzunroq davom etadi.','Neytron yulduzning bir choy qoshig‘i milliardlab tonna keladi.','Oy har yili Yerdan taxminan 3,8 sm uzoqlashadi.','Yupiterdagi Katta Qizil Dog‘ bu Yerdan ham kattaroq bo‘ron.','Somon Yo‘lida 100 milliarddan ortiq yulduz bor.','Marsda quyosh botishi ko‘kish rangda bo‘ladi.','Xalqaro kosmik stansiya Yerni taxminan har 90 daqiqada aylanib chiqadi.','Uran yonboshlab aylanadi: uning o‘qi deyarli 98° qiyshaygan.','Oydagi oyoq izlari millionlab yil saqlanishi mumkin: u yerda shamol yo‘q.','Andromeda galaktikasi nuri bizga 2,5 million yilda yetib keladi.','Barmog‘ingni ekranda yurgiz, qayerga uchishni o‘zing tanla.']}
 };
@@ -1495,7 +1495,7 @@ function drawHoles(t){
   }
 }
 
-/* ---------- Uchar yulduzlar va yulduz yomg'iri ---------- */
+/* ---------- Uchar yulduzlar (siyrak) ---------- */
 const shoots=[];let nextShoot=8;
 function spawnShoot(a){
   const sp=rand(650,1000)*SC;
@@ -1563,69 +1563,6 @@ function drawComets(t){
     ctx.globalAlpha=1;
   }
   ctx.globalCompositeOperation='source-over';
-}
-
-/* ---------- Asteroidlar maydoni: notekis, yoritilgan, aylanuvchi toshlar ---------- */
-const asts=[];let astSpr=null,nextAst=150,astEnd=-1,astNext=0;
-function makeAstSprites(){
-  const out=[],N=24;
-  for(let k=0;k<6;k++){
-    const B=128,base=cnv(B),g=base.getContext('2d'),R=B*.3,el=rand(1,1.45),amps=[],phs=[];
-    for(let j=0;j<5;j++){amps.push(rand(.04,.13)/(1+j*.5));phs.push(rand(0,TAU));}
-    g.translate(B/2,B/2);g.scale(el,1/Math.sqrt(el));
-    g.beginPath();
-    for(let i=0;i<=72;i++){const a=i/72*TAU;let rr=1;for(let j=0;j<5;j++)rr+=amps[j]*Math.sin((j+2)*a+phs[j]);i?g.lineTo(Math.cos(a)*R*rr,Math.sin(a)*R*rr):g.moveTo(Math.cos(a)*R*rr,Math.sin(a)*R*rr);}
-    g.closePath();g.fillStyle=`rgb(${pick(['122,114,106','98,92,88','134,118,100','108,100,112','140,128,116'])})`;g.fill();
-    g.save();g.clip();
-    for(let i=0;i<46;i++){g.fillStyle=`rgba(${Math.random()<.5?'0,0,0':'255,240,220'},${rand(.04,.12).toFixed(3)})`;g.beginPath();g.arc(rand(-R*1.2,R*1.2),rand(-R*1.2,R*1.2),rand(3,14),0,TAU);g.fill();}
-    for(let i=0;i<8;i++){const x=rand(-R*.8,R*.8),y=rand(-R*.8,R*.8),cr=rand(2.5,8);g.fillStyle='rgba(0,0,0,.3)';g.beginPath();g.arc(x,y,cr,0,TAU);g.fill();g.strokeStyle='rgba(255,240,220,.18)';g.lineWidth=1.2;g.beginPath();g.arc(x+cr*.15,y+cr*.15,cr,Math.PI*.9,Math.PI*1.7);g.stroke();}
-    g.restore();
-    const frames=[];
-    for(let f=0;f<N;f++){
-      const c2=cnv(96),h2=c2.getContext('2d');
-      h2.translate(48,48);h2.rotate(f/N*TAU);h2.drawImage(base,-48,-48,96,96);h2.setTransform(1,0,0,1,0,0);
-      h2.globalCompositeOperation='source-atop';
-      const gr=h2.createRadialGradient(33,33,2,42,42,50);
-      gr.addColorStop(0,'rgba(255,246,228,.32)');gr.addColorStop(.33,'rgba(0,0,0,0)');gr.addColorStop(.72,'rgba(2,3,10,.62)');gr.addColorStop(1,'rgba(2,3,10,.92)');
-      h2.fillStyle=gr;h2.fillRect(0,0,96,96);
-      frames.push(c2);
-    }
-    out.push(frames);
-  }
-  return out;
-}
-function spawnAst(){
-  const fg=Math.random()<.16,d=fg?rand(1.15,1.6):rand(.3,.95);
-  const sz=(fg?rand(24,56):lerp(6,30,(d-.3)/.65)*rand(.7,1.3))*SC;
-  const a=(S.cvx||S.cvy)?Math.atan2(S.cvy,S.cvx):S.pl.a,R=Math.hypot(W,H)/2+sz+30,pp=rand(-.65,.65)*Math.max(W,H);
-  const sx=W/2+Math.cos(a)*R-Math.sin(a)*pp,sy=H/2+Math.sin(a)*R+Math.cos(a)*pp;
-  asts.push({x:sx-W/2+S.cam.x*d,y:sy-H/2+S.cam.y*d,d,sz,k:(Math.random()*6)|0,rot:rand(0,TAU),vr:rand(-.7,.7),vx:rand(-10,10),vy:rand(-10,10)});
-}
-function updateAsts(dt){
-  if(S.t>nextAst){
-    nextAst=S.t+(S.mood==='bored'?rand(110,170):rand(200,300));
-    if(S.started&&S.warpI<.05&&!S.ritual){if(!astSpr)astSpr=makeAstSprites();astEnd=S.t+rand(26,36);astNext=S.t;seen('ast');eventToast('✦ Asteroidlar maydoniga kirding',2800);}
-  }
-  if(S.t<astEnd&&S.t>astNext&&asts.length<70&&S.warpI<.05){astNext=S.t+rand(.08,.22);spawnAst();}
-  const lim=Math.hypot(W,H)/2;
-  for(let i=asts.length-1;i>=0;i--){
-    const a=asts[i];a.rot+=a.vr*dt;a.x+=a.vx*dt;a.y+=a.vy*dt;
-    const X=a.x-S.cam.x*a.d+W/2,Y=a.y-S.cam.y*a.d+H/2;
-    if(Math.hypot(X-W/2,Y-H/2)>lim+a.sz+420)asts.splice(i,1);
-  }
-}
-function drawAsts(front){
-  if(!asts.length||!astSpr)return;
-  const step=TAU/24;
-  for(const a of asts){
-    if(front!==(a.d>=1))continue;
-    const X=a.x-S.cam.x*a.d+W/2,Y=a.y-S.cam.y*a.d+H/2,z=a.sz;
-    if(X<-z||X>W+z||Y<-z||Y>H+z)continue;
-    const r=mod(a.rot,TAU),fi=Math.round(r/step)%24,res=r-fi*step;
-    ctx.globalAlpha=a.d<1?.72+.28*a.d:1;
-    ctx.save();ctx.translate(X,Y);ctx.rotate(res);ctx.drawImage(astSpr[a.k][fi],-z,-z,z*2,z*2);ctx.restore();
-  }
-  ctx.globalAlpha=1;
 }
 
 /* ---------- Kosmik meduzalar: sekin suzuvchi, nur sochuvchi ---------- */
@@ -2074,7 +2011,7 @@ function drawRitual(){
 /* ---------- Giperparvoz ---------- */
 function warp(){
   if(S.warpT>=0)return;
-  S.warpT=0;S.reseeded=false;if(!reduce)S.flash=1;astEnd=-1;
+  S.warpT=0;S.reseeded=false;if(!reduce)S.flash=1;
   endOrbit();S.visit=null;
   whoosh();hideHint();
 }
@@ -2461,7 +2398,7 @@ thGo.addEventListener('click',()=>{const t=thText.value.trim();if(!t)return;thTe
 const tVideo=$('#tVideo'),tTilt=$('#tTilt'),tSaver=$('#tSaver'),tFull=$('#tFull'),tInstall=$('#tInstall'),installHelp=$('#installHelp'),tVib=$('#tVib'),tOffer=$('#tOffer');
 
 /* Parvoz jurnali (faqat shu qurilmada) */
-const SEEN0={comet:0,hole:0,ast:0,jelly:0,nova:0};
+const SEEN0={comet:0,hole:0,jelly:0,nova:0};
 const ST=(()=>{const d=store.get('stats',null)||{},sn=Object.assign({},SEEN0,d.seen||{});Object.keys(SEEN0).forEach(k=>{sn[k]=+sn[k]||0;});return{total:+d.total||0,sessions:+d.sessions||0,releases:+d.releases||0,day:String(d.day||''),today:+d.today||0,seen:sn};})();
 const dayKey=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)+'-'+d.getDate();};
 function statTick(dt){
@@ -2475,7 +2412,7 @@ function renderStats(){
   if(ST.day!==dayKey()){ST.day=dayKey();ST.today=0;}
   $('#stToday').textContent=fmtDur(ST.today);$('#stTotal').textContent=fmtDur(ST.total);
   $('#stSess').textContent=String(ST.sessions);$('#stRel').textContent=String(ST.releases);
-  const s=ST.seen;$('#stDisc').textContent='Kashfiyotlar: kometa '+s.comet+' · qora tuynuk '+s.hole+' · asteroidlar maydoni '+s.ast+' · kosmik meduzalar '+s.jelly+' · o‘ta yangi yulduz '+s.nova;
+  const s=ST.seen;$('#stDisc').textContent='Kashfiyotlar: kometa '+s.comet+' · qora tuynuk '+s.hole+' · kosmik meduzalar '+s.jelly+' · o‘ta yangi yulduz '+s.nova;
 }
 function seen(k){if(S.started){ST.seen[k]++;}}
 setInterval(()=>{if(S.started)saveStats();if(more.classList.contains('open'))renderStats();},10000);
@@ -2507,7 +2444,7 @@ function applyMood(atStart){
   }else{msgScript=[md.greet];scheduleMsg(atStart?3500:900);}
   if(m==='tired')moodTO.push(offerWhen(atStart?180000:60000,{check:()=>S.mood==='tired'&&!SL.on&&!S.slept,text:'☾ Uyqu taymerini 30 daqiqaga qo‘yaymi?',sub:'Teg, yoqiladi',fn:()=>setSleep(30)}));
   if(m==='stressed')moodTO.push(offerWhen(atStart?60000:20000,{check:()=>S.mood==='stressed'&&!S.ritual,text:'✦ Ichingdagini yozib, koinotga uchirib yuborasanmi?',sub:'Teg, oyna ochiladi',fn:()=>{store.set('tipRelease',true);openThought();}}));
-  if(m==='bored'){nextComet=Math.min(nextComet,S.t+(atStart?35:12));nextPlanet=Math.min(nextPlanet,S.t+4);nextHole=Math.min(nextHole,S.t+70);nextAst=Math.min(nextAst,S.t+(atStart?55:20));nextJelly=Math.min(nextJelly,S.t+(atStart?110:45));}
+  if(m==='bored'){nextComet=Math.min(nextComet,S.t+(atStart?35:12));nextPlanet=Math.min(nextPlanet,S.t+4);nextHole=Math.min(nextHole,S.t+70);nextJelly=Math.min(nextJelly,S.t+(atStart?110:45));}
 }
 document.querySelectorAll('[data-mood]').forEach(b=>b.addEventListener('click',()=>setMood(b.dataset.mood)));
 
@@ -2795,7 +2732,7 @@ loadSite().catch(()=>{}).then(()=>{M.loaded=true;renderList();renderNP();if(S.st
 function update(dt){
   if(S.mix<1){S.mix=Math.min(1,S.mix+dt/S.mixDur);if(S.pendingTh&&S.mix>=.5){applyTheme(S.pendingTh);S.pendingTh=null;}if(S.mix>=1)prevLook=null;}
   if(S.started&&autoSec&&S.t>S.nextAuto&&!S.ritual&&S.warpT<0){S.nextAuto=S.t+autoSec;switchLook((look.ti+1)%THEMES.length,true,6);}
-  updateWarp(dt);updatePlane(dt);updateCam(dt);updateTrail(dt);updateParts(dt);updatePlanets();updateHoles();updateShoots(dt);updateComets(dt);updateAsts(dt);updateJellies(dt);updateNova();updateRings(dt);updateRitual(dt);
+  updateWarp(dt);updatePlane(dt);updateCam(dt);updateTrail(dt);updateParts(dt);updatePlanets();updateHoles();updateShoots(dt);updateComets(dt);updateJellies(dt);updateNova();updateRings(dt);updateRitual(dt);
   breathTick();statTick(dt);
   S.flash=Math.max(0,S.flash-dt*2.4);
   S.touchA+=((S.touching?1:0)-S.touchA)*(1-Math.exp(-dt*8));
@@ -2842,7 +2779,7 @@ function render(){
   const nf=(1-S.warpI*.55)*(.88+S.lvl*.45);
   if(prevLook&&S.mix<1)drawLook(prevLook,(1-S.mix)*nf,t);
   drawLook(look,S.mix*nf,t);
-  drawStars(t);drawNova();drawWishes(t);drawComets(t);drawJellies(t);drawPlanets();drawAsts(false);drawHoles(t);drawShoots();drawBreath();drawLantern();drawRings();drawTrail();drawParts(t);drawPlane(t);drawAsts(true);drawDust();drawBokeh(t);
+  drawStars(t);drawNova();drawWishes(t);drawComets(t);drawJellies(t);drawPlanets();drawHoles(t);drawShoots();drawBreath();drawLantern();drawRings();drawTrail();drawParts(t);drawPlane(t);drawDust();drawBokeh(t);
   ctx.setTransform(DPR,0,0,DPR,0,0);
   drawTouch(t);
   if(S.flash>0){ctx.fillStyle=`rgba(255,255,255,${(S.flash*.22).toFixed(3)})`;ctx.fillRect(0,0,W,H);}
